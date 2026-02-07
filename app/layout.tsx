@@ -1,4 +1,4 @@
-// src/app/layout.tsx
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
