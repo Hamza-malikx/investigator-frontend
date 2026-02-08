@@ -1,8 +1,9 @@
-// app/(auth)/register/page.tsx
+// src/app/(auth)/register/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -13,10 +14,28 @@ import {
   CheckCircle2,
   Chrome,
   Github,
+  AlertCircle,
+  X,
+  Check,
 } from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+// Password requirement component - moved outside to avoid re-creation on render
+const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => (
+  <li className="flex items-center gap-2">
+    {met ? (
+      <Check size={14} className="text-[#10b981]" />
+    ) : (
+      <X size={14} className="text-[#6b7280]" />
+    )}
+    <span className={met ? "text-[#10b981]" : "text-[#6b7280]"}>{text}</span>
+  </li>
+);
 
 export default function RegisterPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { register, isLoading, error, clearError, isAuthenticated } = useAuth();
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     username: "",
@@ -26,17 +45,93 @@ export default function RegisterPage() {
     first_name: "",
     last_name: "",
   });
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
+  // Password strength indicators - derived state using useMemo
+  const passwordStrength = useMemo(
+    () => ({
+      length: formData.password.length >= 8,
+      uppercase: /[A-Z]/.test(formData.password),
+      number: /[0-9]/.test(formData.password),
+    }),
+    [formData.password],
+  );
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
+
+  const validateStep1 = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.username) {
+      errors.username = "Username is required";
+    } else if (formData.username.length < 3) {
+      errors.username = "Username must be at least 3 characters";
+    }
+
+    if (!formData.email) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Please enter a valid email";
+    }
+
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (
+      !passwordStrength.length ||
+      !passwordStrength.uppercase ||
+      !passwordStrength.number
+    ) {
+      errors.password = "Password does not meet requirements";
+    }
+
+    if (!formData.password_confirm) {
+      errors.password_confirm = "Please confirm your password";
+    } else if (formData.password !== formData.password_confirm) {
+      errors.password_confirm = "Passwords do not match";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearError();
+
     if (step === 1) {
-      setStep(2);
+      if (validateStep1()) {
+        setStep(2);
+      }
       return;
     }
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
+
+    // Step 2 - Submit registration
+    try {
+      await register(formData);
+      router.push("/dashboard");
+    } catch (err) {
+      // Error is handled by the store
+      console.error("Registration failed:", err);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors({ ...validationErrors, [field]: "" });
+    }
+    // Clear API error
+    if (error) {
+      clearError();
+    }
   };
 
   const features = [
@@ -71,6 +166,19 @@ export default function RegisterPage() {
           />
         ))}
       </div>
+
+      {/* API Error Alert */}
+      {error && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-500 font-medium">
+              Registration Failed
+            </p>
+            <p className="text-sm text-red-400 mt-1">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Social login - only on step 1 */}
       {step === 1 && (
@@ -109,10 +217,10 @@ export default function RegisterPage() {
               placeholder="investigator_jane"
               icon={<User size={18} />}
               value={formData.username}
-              onChange={(e) =>
-                setFormData({ ...formData, username: e.target.value })
-              }
+              onChange={(e) => handleInputChange("username", e.target.value)}
+              error={validationErrors.username}
               required
+              disabled={isLoading}
             />
 
             <Input
@@ -121,10 +229,10 @@ export default function RegisterPage() {
               placeholder="jane@company.com"
               icon={<Mail size={18} />}
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              error={validationErrors.email}
               required
+              disabled={isLoading}
             />
 
             <div className="grid grid-cols-2 gap-4">
@@ -134,10 +242,10 @@ export default function RegisterPage() {
                 placeholder="••••••••"
                 icon={<Lock size={18} />}
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={(e) => handleInputChange("password", e.target.value)}
+                error={validationErrors.password}
                 required
+                disabled={isLoading}
               />
               <Input
                 label="Confirm"
@@ -146,27 +254,29 @@ export default function RegisterPage() {
                 icon={<Lock size={18} />}
                 value={formData.password_confirm}
                 onChange={(e) =>
-                  setFormData({ ...formData, password_confirm: e.target.value })
+                  handleInputChange("password_confirm", e.target.value)
                 }
+                error={validationErrors.password_confirm}
                 required
+                disabled={isLoading}
               />
             </div>
 
-            <div className="text-xs text-[#6b7280] space-y-1">
-              <p>Password must contain:</p>
-              <ul className="space-y-1 ml-4">
-                <li className="flex items-center gap-1">
-                  <CheckCircle2 size={12} className="text-[#10b981]" />
-                  At least 8 characters
-                </li>
-                <li className="flex items-center gap-1">
-                  <CheckCircle2 size={12} className="text-[#10b981]" />
-                  One uppercase letter
-                </li>
-                <li className="flex items-center gap-1">
-                  <CheckCircle2 size={12} className="text-[#10b981]" />
-                  One number
-                </li>
+            <div className="text-xs text-[#6b7280] space-y-2">
+              <p className="font-medium">Password must contain:</p>
+              <ul className="space-y-1.5 ml-1">
+                <PasswordRequirement
+                  met={passwordStrength.length}
+                  text="At least 8 characters"
+                />
+                <PasswordRequirement
+                  met={passwordStrength.uppercase}
+                  text="One uppercase letter"
+                />
+                <PasswordRequirement
+                  met={passwordStrength.number}
+                  text="One number"
+                />
               </ul>
             </div>
           </>
@@ -179,17 +289,17 @@ export default function RegisterPage() {
                 placeholder="Jane"
                 value={formData.first_name}
                 onChange={(e) =>
-                  setFormData({ ...formData, first_name: e.target.value })
+                  handleInputChange("first_name", e.target.value)
                 }
+                disabled={isLoading}
               />
               <Input
                 label="Last name"
                 type="text"
                 placeholder="Doe"
                 value={formData.last_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, last_name: e.target.value })
-                }
+                onChange={(e) => handleInputChange("last_name", e.target.value)}
+                disabled={isLoading}
               />
             </div>
 
@@ -236,13 +346,25 @@ export default function RegisterPage() {
               variant="secondary"
               className="flex-1"
               onClick={() => setStep(1)}
+              disabled={isLoading}
             >
               Back
             </Button>
           )}
-          <Button type="submit" className="flex-1 group" isLoading={isLoading}>
-            {step === 1 ? "Continue" : "Create account"}
-            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <Button
+            type="submit"
+            className="flex-1 group"
+            isLoading={isLoading}
+            disabled={isLoading}
+          >
+            {isLoading
+              ? "Creating account..."
+              : step === 1
+                ? "Continue"
+                : "Create account"}
+            {!isLoading && (
+              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            )}
           </Button>
         </div>
       </form>
