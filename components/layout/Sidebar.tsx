@@ -1,8 +1,8 @@
-// components/layout/Sidebar.tsx
+// src/components/layout/Sidebar.tsx
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
   Zap,
   LogOut,
 } from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -38,6 +39,18 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
+  };
+
+  // Calculate API quota percentage
+  const apiQuotaPercentage = user?.api_quota_remaining
+    ? Math.min((user.api_quota_remaining / 1000) * 100, 100)
+    : 0;
 
   return (
     <aside
@@ -69,7 +82,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </button>
 
       {/* Main navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-1">
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         {!collapsed && (
           <p className="px-4 text-xs font-semibold text-[#6b7280] uppercase tracking-wider mb-4">
             Main
@@ -88,6 +101,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   ? "bg-[#6366f1]/10 text-[#818cf8] border border-[#6366f1]/20"
                   : "text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb]",
               )}
+              title={collapsed ? item.name : undefined}
             >
               <item.icon
                 className={cn(
@@ -107,7 +121,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* API Quota */}
-      {!collapsed && (
+      {!collapsed && user && (
         <div className="px-4 mb-4">
           <div className="p-4 rounded-xl bg-[#1f2937]/50 border border-[#374151]/50">
             <div className="flex items-center gap-2 mb-3">
@@ -117,9 +131,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </span>
             </div>
             <div className="h-2 bg-[#374151] rounded-full overflow-hidden mb-2">
-              <div className="h-full w-3/4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full" />
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  apiQuotaPercentage > 50
+                    ? "bg-gradient-to-r from-[#6366f1] to-[#a855f7]"
+                    : apiQuotaPercentage > 25
+                      ? "bg-gradient-to-r from-[#f59e0b] to-[#f97316]"
+                      : "bg-gradient-to-r from-[#ef4444] to-[#dc2626]",
+                )}
+                style={{ width: `${apiQuotaPercentage}%` }}
+              />
             </div>
-            <p className="text-xs text-[#6b7280]">750 / 1,000 calls</p>
+            <p className="text-xs text-[#6b7280]">
+              {user.api_quota_remaining || 0} / 1,000 calls
+            </p>
           </div>
         </div>
       )}
@@ -131,12 +157,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             key={item.name}
             href={item.href}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb] transition-all duration-200 group"
+            title={collapsed ? item.name : undefined}
           >
             <item.icon className="w-5 h-5 text-[#6b7280] group-hover:text-[#9ca3af]" />
             {!collapsed && <span>{item.name}</span>}
           </Link>
         ))}
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#9ca3af] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-all duration-200 group">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#9ca3af] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-all duration-200 group"
+          title={collapsed ? "Logout" : undefined}
+        >
           <LogOut className="w-5 h-5 text-[#6b7280] group-hover:text-[#ef4444]" />
           {!collapsed && <span>Logout</span>}
         </button>
