@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   accessToken: null,
   refreshToken: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // start as loading
   error: null,
 
   /**
@@ -31,7 +31,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const response = await authAPI.login(credentials);
 
-      // Extract tokens - handle both response formats
       const accessToken = response.tokens?.access || response.access;
       const refreshToken = response.tokens?.refresh || response.refresh;
 
@@ -39,7 +38,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         throw new Error("Invalid response: missing tokens");
       }
 
-      // Save to localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", accessToken);
         localStorage.setItem("refresh_token", refreshToken);
@@ -74,7 +72,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const response = await authAPI.register(data);
 
-      // Extract tokens
       const accessToken = response.tokens?.access || response.access;
       const refreshToken = response.tokens?.refresh || response.refresh;
 
@@ -82,7 +79,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         throw new Error("Invalid response: missing tokens");
       }
 
-      // Save to localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", accessToken);
         localStorage.setItem("refresh_token", refreshToken);
@@ -121,7 +117,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Clear localStorage
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
@@ -133,6 +128,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
+        isLoading: false,
         error: null,
       });
     }
@@ -143,6 +139,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
    */
   loadUserFromStorage: () => {
     if (typeof window === "undefined") return;
+
+    set({ isLoading: true }); // start loading
 
     try {
       const accessToken = localStorage.getItem("access_token");
@@ -156,14 +154,30 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           accessToken,
           refreshToken,
           isAuthenticated: true,
+          isLoading: false,
+        });
+      } else {
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false,
         });
       }
     } catch (error) {
       console.error("Failed to load user from storage:", error);
-      // Clear invalid data
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
+
+      set({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   },
 
