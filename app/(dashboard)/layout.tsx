@@ -1,4 +1,3 @@
-// src/app/(dashboard)/layout.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,15 +12,22 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth(); // use isLoading now
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
+    // Only redirect when auth check is finished
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login"); // use replace to avoid back navigation
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, router]);
 
+  // Show nothing while loading auth state
+  if (isLoading) {
+    return null; // or a loader spinner
+  }
+
+  // Extra safety: if not authenticated, don't render dashboard
   if (!isAuthenticated) {
     return null;
   }
@@ -33,7 +39,9 @@ export default function DashboardLayout({
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? "ml-20" : "ml-64"}`}
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? "ml-20" : "ml-64"
+        }`}
       >
         <DashboardNavbar />
         <main className="flex-1 p-6 overflow-auto">{children}</main>
