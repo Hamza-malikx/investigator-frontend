@@ -1,4 +1,4 @@
-// src/components/landing/CTASection.tsx
+// components/landing/CTASection.tsx
 "use client";
 
 import { ArrowRight, Sparkles } from "lucide-react";

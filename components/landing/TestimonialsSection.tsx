@@ -1,4 +1,4 @@
-// src/components/landing/TestimonialsSection.tsx
+// components/landing/TestimonialsSection.tsx
 "use client";
 
 import { useState } from "react";
