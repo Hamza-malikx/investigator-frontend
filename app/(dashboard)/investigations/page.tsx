@@ -1,12 +1,11 @@
-// app/(dashboard)/investigations/page.tsx
+// src/app/(dashboard)/investigations/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
   Plus,
-  Filter,
   MoreHorizontal,
   Play,
   Pause,
@@ -14,122 +13,18 @@ import {
   XCircle,
   Clock,
   AlertCircle,
-  ArrowUpRight,
   Calendar,
   BarChart3,
   LayoutGrid,
   List,
+  Trash2,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-
-// Mock data matching backend structure
-const investigations = [
-  {
-    id: "inv_001",
-    title: "Financial Fraud Analysis - Q4 2024",
-    initial_query:
-      "Analyze cross-border transaction patterns for suspicious activity",
-    status: "running",
-    current_phase: "analyzing",
-    progress_percentage: 78,
-    confidence_score: 0.89,
-    entities_count: 47,
-    relationships_count: 128,
-    evidence_count: 234,
-    started_at: "2024-01-15T10:30:00Z",
-    estimated_completion: "2024-01-16T14:00:00Z",
-    created_at: "2024-01-15T10:30:00Z",
-    total_api_calls: 1247,
-    total_cost_usd: "12.45",
-  },
-  {
-    id: "inv_002",
-    title: "Corporate Due Diligence - TechCorp Acquisition",
-    initial_query:
-      "Comprehensive background check on TechCorp executives and subsidiaries",
-    status: "running",
-    current_phase: "researching",
-    progress_percentage: 45,
-    confidence_score: 0.72,
-    entities_count: 23,
-    relationships_count: 67,
-    evidence_count: 89,
-    started_at: "2024-01-14T09:00:00Z",
-    estimated_completion: "2024-01-17T18:00:00Z",
-    created_at: "2024-01-14T09:00:00Z",
-    total_api_calls: 534,
-    total_cost_usd: "5.34",
-  },
-  {
-    id: "inv_003",
-    title: "IP Theft Investigation - Source Code Leak",
-    initial_query:
-      "Trace the source of proprietary code appearing on public repositories",
-    status: "completed",
-    current_phase: "reporting",
-    progress_percentage: 100,
-    confidence_score: 0.94,
-    entities_count: 12,
-    relationships_count: 34,
-    evidence_count: 156,
-    started_at: "2024-01-10T14:00:00Z",
-    completed_at: "2024-01-13T16:30:00Z",
-    created_at: "2024-01-10T14:00:00Z",
-    total_api_calls: 2890,
-    total_cost_usd: "28.90",
-  },
-  {
-    id: "inv_004",
-    title: "Supply Chain Risk Assessment",
-    initial_query:
-      "Map vendor relationships and identify single points of failure",
-    status: "paused",
-    current_phase: "researching",
-    progress_percentage: 32,
-    confidence_score: 0.61,
-    entities_count: 89,
-    relationships_count: 234,
-    evidence_count: 45,
-    started_at: "2024-01-12T11:00:00Z",
-    estimated_completion: "2024-01-18T12:00:00Z",
-    created_at: "2024-01-12T11:00:00Z",
-    total_api_calls: 892,
-    total_cost_usd: "8.92",
-  },
-  {
-    id: "inv_005",
-    title: "Political Influence Network Analysis",
-    initial_query:
-      "Identify lobbying connections and campaign finance patterns",
-    status: "pending",
-    current_phase: "planning",
-    progress_percentage: 0,
-    confidence_score: 0.0,
-    entities_count: 0,
-    relationships_count: 0,
-    evidence_count: 0,
-    created_at: "2024-01-15T16:45:00Z",
-    total_api_calls: 0,
-    total_cost_usd: "0.00",
-  },
-  {
-    id: "inv_006",
-    title: "Cryptocurrency Wallet Tracing",
-    initial_query: "Follow Bitcoin transactions from flagged exchange accounts",
-    status: "failed",
-    current_phase: "analyzing",
-    progress_percentage: 67,
-    confidence_score: 0.45,
-    entities_count: 156,
-    relationships_count: 423,
-    evidence_count: 0,
-    started_at: "2024-01-08T09:30:00Z",
-    completed_at: "2024-01-10T11:20:00Z",
-    created_at: "2024-01-08T09:30:00Z",
-    total_api_calls: 3421,
-    total_cost_usd: "34.21",
-  },
-];
+import { useInvestigation } from "@/lib/hooks/useInvestigation";
+import { formatRelativeTime } from "@/lib/utils";
+import { Investigation } from "@/types/investigation";
 
 const statusConfig = {
   pending: { icon: Clock, color: "#6b7280", bg: "#374151", label: "Pending" },
@@ -152,9 +47,26 @@ const phaseConfig = {
 };
 
 export default function InvestigationsPage() {
+  const {
+    investigations,
+    isLoading,
+    error,
+    fetchInvestigations,
+    pauseInvestigation,
+    resumeInvestigation,
+    deleteInvestigation,
+    clearError,
+  } = useInvestigation();
+
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [showActions, setShowActions] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchInvestigations();
+  }, []);
 
   const filteredInvestigations = investigations.filter((inv) => {
     const matchesStatus = filterStatus === "all" || inv.status === filterStatus;
@@ -171,8 +83,247 @@ export default function InvestigationsPage() {
     (i) => i.status === "completed",
   ).length;
 
+  const handlePause = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActioningId(id);
+    try {
+      await pauseInvestigation(id);
+    } catch (err) {
+      console.error("Failed to pause investigation:", err);
+    } finally {
+      setActioningId(null);
+      setShowActions(null);
+    }
+  };
+
+  const handleResume = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActioningId(id);
+    try {
+      await resumeInvestigation(id);
+    } catch (err) {
+      console.error("Failed to resume investigation:", err);
+    } finally {
+      setActioningId(null);
+      setShowActions(null);
+    }
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (
+      !confirm(
+        "Are you sure you want to delete this investigation? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setActioningId(id);
+    try {
+      await deleteInvestigation(id);
+    } catch (err) {
+      console.error("Failed to delete investigation:", err);
+    } finally {
+      setActioningId(null);
+      setShowActions(null);
+    }
+  };
+
+  const InvestigationCard = ({
+    investigation,
+  }: {
+    investigation: Investigation;
+  }) => {
+    const StatusIcon = statusConfig[investigation.status].icon;
+    const statusColor = statusConfig[investigation.status].color;
+    const phaseInfo = phaseConfig[investigation.current_phase];
+    const isActioning = actioningId === investigation.id;
+
+    return (
+      <div className="group relative">
+        <Link
+          href={`/investigations/${investigation.id}`}
+          className={`block bg-[#111827] border border-[#1f2937] hover:border-[#374151] rounded-2xl transition-all duration-300 ${
+            viewMode === "list" ? "p-5" : "p-6"
+          }`}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${statusColor}15` }}
+              >
+                <StatusIcon
+                  className="w-5 h-5"
+                  style={{ color: statusColor }}
+                />
+              </div>
+              <div>
+                <span
+                  className="text-xs font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: `${statusColor}15`,
+                    color: statusColor,
+                  }}
+                >
+                  {statusConfig[investigation.status].label}
+                </span>
+                <p className="text-xs text-[#6b7280] mt-1">
+                  {phaseInfo?.label || "Unknown"}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions Menu */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowActions(
+                    showActions === investigation.id ? null : investigation.id,
+                  );
+                }}
+                className="p-2 rounded-lg text-[#6b7280] hover:text-[#f9fafb] hover:bg-[#1f2937] transition-all"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+
+              {showActions === investigation.id && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowActions(null);
+                    }}
+                  />
+
+                  {/* Dropdown */}
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#111827] border border-[#1f2937] shadow-xl z-50 overflow-hidden">
+                    <Link
+                      href={`/investigations/${investigation.id}/board`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowActions(null);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb] transition-all"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open Investigation
+                    </Link>
+
+                    {investigation.status === "running" && (
+                      <button
+                        onClick={(e) => handlePause(investigation.id, e)}
+                        disabled={isActioning}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb] transition-all disabled:opacity-50"
+                      >
+                        <Pause className="w-4 h-4" />
+                        {isActioning ? "Pausing..." : "Pause Investigation"}
+                      </button>
+                    )}
+
+                    {investigation.status === "paused" && (
+                      <button
+                        onClick={(e) => handleResume(investigation.id, e)}
+                        disabled={isActioning}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#9ca3af] hover:bg-[#1f2937] hover:text-[#f9fafb] transition-all disabled:opacity-50"
+                      >
+                        <Play className="w-4 h-4" />
+                        {isActioning ? "Resuming..." : "Resume Investigation"}
+                      </button>
+                    )}
+
+                    <div className="border-t border-[#1f2937]" />
+
+                    <button
+                      onClick={(e) => handleDelete(investigation.id, e)}
+                      disabled={isActioning}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#ef4444] hover:bg-[#ef4444]/10 transition-all disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {isActioning ? "Deleting..." : "Delete Investigation"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Title & description */}
+          <h3 className="font-semibold text-[#f9fafb] mb-2 line-clamp-1 group-hover:text-[#818cf8] transition-colors">
+            {investigation.title}
+          </h3>
+          <p className="text-sm text-[#6b7280] mb-4 line-clamp-2">
+            {investigation.initial_query}
+          </p>
+
+          {/* Progress */}
+          {investigation.status !== "pending" && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-[#6b7280]">Progress</span>
+                <span className="text-[#f9fafb] font-medium">
+                  {investigation.progress_percentage}%
+                </span>
+              </div>
+              <div className="h-2 bg-[#1f2937] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${investigation.progress_percentage}%`,
+                    backgroundColor: statusColor,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div
+            className={`flex items-center gap-4 text-sm text-[#6b7280] ${viewMode === "grid" ? "flex-wrap" : ""}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="w-4 h-4" />
+              <span>{investigation.entities_count} entities</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-4 h-4" />
+              <span>{formatRelativeTime(investigation.created_at)}</span>
+            </div>
+            {investigation.status === "running" && (
+              <div className="flex items-center gap-1.5 text-[#6366f1]">
+                <AlertCircle className="w-4 h-4 animate-pulse" />
+                <span>Live</span>
+              </div>
+            )}
+          </div>
+
+          {/* Cost indicator */}
+          {/* <div className="mt-4 pt-4 border-t border-[#1f2937] flex items-center justify-between text-xs">
+            <span className="text-[#6b7280]">
+              {investigation.total_api_calls.toLocaleString()} API calls
+            </span>
+            <span className="text-[#10b981] font-medium">
+              ${investigation.total_cost_usd}
+            </span>
+          </div> */}
+        </Link>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -207,6 +358,28 @@ export default function InvestigationsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-500 font-medium">
+              Failed to Load Investigations
+            </p>
+            <p className="text-sm text-red-400 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => {
+              clearError();
+              fetchInvestigations();
+            }}
+            className="p-1 rounded-lg text-red-500 hover:bg-red-500/10 transition-all"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filters and search */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -258,144 +431,43 @@ export default function InvestigationsPage() {
         </div>
       </div>
 
-      {/* Investigations list */}
-      <div
-        className={
-          viewMode === "grid"
-            ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-            : "space-y-4"
-        }
-      >
-        {filteredInvestigations.map((investigation) => {
-          const StatusIcon =
-            statusConfig[investigation.status as keyof typeof statusConfig]
-              .icon;
-          const statusColor =
-            statusConfig[investigation.status as keyof typeof statusConfig]
-              .color;
-          const phaseInfo =
-            phaseConfig[
-              investigation.current_phase as keyof typeof phaseConfig
-            ];
-
-          return (
-            <Link
-              key={investigation.id}
-              href={`/investigations/${investigation.id}`}
-              className={`group block bg-[#111827] border border-[#1f2937] hover:border-[#374151] rounded-2xl transition-all duration-300 ${
+      {/* Loading State */}
+      {isLoading ? (
+        <div
+          className={
+            viewMode === "grid"
+              ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+              : "space-y-4"
+          }
+        >
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className={`bg-[#111827] border border-[#1f2937] rounded-2xl animate-pulse ${
                 viewMode === "list" ? "p-5" : "p-6"
               }`}
             >
-              {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${statusColor}15` }}
-                  >
-                    <StatusIcon
-                      className="w-5 h-5"
-                      style={{ color: statusColor }}
-                    />
-                  </div>
-                  <div>
-                    <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: `${statusColor}15`,
-                        color: statusColor,
-                      }}
-                    >
-                      {
-                        statusConfig[
-                          investigation.status as keyof typeof statusConfig
-                        ].label
-                      }
-                    </span>
-                    <p className="text-xs text-[#6b7280] mt-1">
-                      {phaseInfo?.label || "Unknown"}
-                    </p>
+                  <div className="w-10 h-10 rounded-xl bg-[#1f2937]" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-16 bg-[#1f2937] rounded" />
+                    <div className="h-3 w-12 bg-[#1f2937] rounded" />
                   </div>
                 </div>
-                <button className="p-2 rounded-lg text-[#6b7280] hover:text-[#f9fafb] hover:bg-[#1f2937] opacity-0 group-hover:opacity-100 transition-all">
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
               </div>
-
-              {/* Title & description */}
-              <h3 className="font-semibold text-[#f9fafb] mb-2 line-clamp-1 group-hover:text-[#818cf8] transition-colors">
-                {investigation.title}
-              </h3>
-              <p className="text-sm text-[#6b7280] mb-4 line-clamp-2">
-                {investigation.initial_query}
-              </p>
-
-              {/* Progress */}
-              {investigation.status !== "pending" && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-[#6b7280]">Progress</span>
-                    <span className="text-[#f9fafb] font-medium">
-                      {investigation.progress_percentage}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-[#1f2937] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${investigation.progress_percentage}%`,
-                        backgroundColor: statusColor,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Stats */}
-              <div
-                className={`flex items-center gap-4 text-sm text-[#6b7280] ${viewMode === "grid" ? "flex-wrap" : ""}`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <BarChart3 className="w-4 h-4" />
-                  <span>{investigation.entities_count} entities</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    {investigation.status === "completed"
-                      ? "Completed"
-                      : investigation.estimated_completion
-                        ? "Est. " +
-                          new Date(
-                            investigation.estimated_completion,
-                          ).toLocaleDateString()
-                        : "Pending"}
-                  </span>
-                </div>
-                {investigation.status === "running" && (
-                  <div className="flex items-center gap-1.5 text-[#6366f1]">
-                    <AlertCircle className="w-4 h-4 animate-pulse" />
-                    <span>Live</span>
-                  </div>
-                )}
+              <div className="h-5 bg-[#1f2937] rounded mb-2" />
+              <div className="h-4 bg-[#1f2937] rounded w-3/4 mb-4" />
+              <div className="h-2 bg-[#1f2937] rounded mb-4" />
+              <div className="flex gap-4">
+                <div className="h-4 w-20 bg-[#1f2937] rounded" />
+                <div className="h-4 w-24 bg-[#1f2937] rounded" />
               </div>
-
-              {/* Cost indicator */}
-              <div className="mt-4 pt-4 border-t border-[#1f2937] flex items-center justify-between text-xs">
-                <span className="text-[#6b7280]">
-                  {investigation.total_api_calls.toLocaleString()} API calls
-                </span>
-                <span className="text-[#10b981] font-medium">
-                  ${investigation.total_cost_usd}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Empty state */}
-      {filteredInvestigations.length === 0 && (
+            </div>
+          ))}
+        </div>
+      ) : filteredInvestigations.length === 0 ? (
+        /* Empty state */
         <div className="text-center py-16">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1f2937] flex items-center justify-center">
             <Search className="w-8 h-8 text-[#6b7280]" />
@@ -404,7 +476,9 @@ export default function InvestigationsPage() {
             No investigations found
           </h3>
           <p className="text-[#6b7280] mb-6">
-            Try adjusting your filters or create a new investigation
+            {searchQuery || filterStatus !== "all"
+              ? "Try adjusting your filters or search query"
+              : "Create your first investigation to get started"}
           </p>
           <Link href="/investigations/new">
             <Button>
@@ -412,6 +486,22 @@ export default function InvestigationsPage() {
               New Investigation
             </Button>
           </Link>
+        </div>
+      ) : (
+        /* Investigations list */
+        <div
+          className={
+            viewMode === "grid"
+              ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+              : "space-y-4"
+          }
+        >
+          {filteredInvestigations.map((investigation) => (
+            <InvestigationCard
+              key={investigation.id}
+              investigation={investigation}
+            />
+          ))}
         </div>
       )}
     </div>
