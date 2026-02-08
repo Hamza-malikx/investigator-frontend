@@ -1,4 +1,4 @@
-// src/lib/hooks/useInvestigation.ts
+// lib/hooks/useInvestigation.ts
 
 import { useInvestigationStore } from "@/lib/store/investigationStore";
 

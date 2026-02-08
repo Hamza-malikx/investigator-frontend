@@ -1,4 +1,4 @@
-// src/lib/store/investigationStore.ts
+// lib/store/investigationStore.ts
 
 import { create } from "zustand";
 import { investigationAPI } from "@/lib/api/investigations";

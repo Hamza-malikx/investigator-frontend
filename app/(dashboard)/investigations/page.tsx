@@ -1,4 +1,4 @@
-// src/app/(dashboard)/investigations/page.tsx
+// app/(dashboard)/investigations/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -174,9 +174,9 @@ export default function InvestigationsPage() {
                 >
                   {statusConfig[investigation.status].label}
                 </span>
-                <p className="text-xs text-[#6b7280] mt-1">
+                {/* <p className="text-xs text-[#6b7280] mt-1">
                   {phaseInfo?.label || "Unknown"}
-                </p>
+                </p> */}
               </div>
             </div>
 

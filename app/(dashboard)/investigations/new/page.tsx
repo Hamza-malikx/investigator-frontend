@@ -1,4 +1,4 @@
-// src/app/(dashboard)/investigations/new/page.tsx
+// app/(dashboard)/investigations/new/page.tsx
 "use client";
 
 import { useState } from "react";

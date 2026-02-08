@@ -1,4 +1,4 @@
-// src/components/layout/DashboardNavbar.tsx
+// components/layout/DashboardNavbar.tsx
 "use client";
 
 import { useState } from "react";

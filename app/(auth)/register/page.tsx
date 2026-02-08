@@ -1,4 +1,4 @@
-// src/app/(auth)/register/page.tsx
+// app/(auth)/register/page.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";

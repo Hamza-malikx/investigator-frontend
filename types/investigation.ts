@@ -1,4 +1,4 @@
-// src/types/investigation.ts
+// types/investigation.ts
 
 export type InvestigationStatus =
   | "pending"

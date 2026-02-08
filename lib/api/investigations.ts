@@ -1,4 +1,4 @@
-// src/lib/api/investigations.ts
+// lib/api/investigations.ts
 
 import apiClient from "./client";
 import {

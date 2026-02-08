@@ -1,4 +1,4 @@
-// src/app/(dashboard)/investigations/[id]/page.tsx
+// app/(dashboard)/investigations/[id]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,6 +26,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useInvestigation } from "@/lib/hooks/useInvestigation";
 import { formatRelativeTime } from "@/lib/utils";
+import { EntitiesTab } from "@/components/investigation/EntitiesTab";
+import { EvidenceTab } from "@/components/investigation/EvidenceTab";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -215,13 +217,13 @@ export default function InvestigationDetailPage() {
               {investigation.current_phase && (
                 <span
                   className="px-3 py-1 rounded-full text-xs font-medium border"
-                  style={{
-                    backgroundColor: `${phaseInfo.color}15`,
-                    color: phaseInfo.color,
-                    borderColor: `${phaseInfo.color}30`,
-                  }}
+                  // style={{
+                  //   backgroundColor: `${phaseInfo.color}15`,
+                  //   color: phaseInfo.color,
+                  //   borderColor: `${phaseInfo.color}30`,
+                  // }}
                 >
-                  {phaseInfo.label}
+                  {/* {phaseInfo.label} */}
                 </span>
               )}
             </div>
@@ -638,33 +640,11 @@ export default function InvestigationDetailPage() {
         )}
 
         {activeTab === "entities" && (
-          <div className="text-center py-16">
-            <Network className="w-16 h-16 mx-auto mb-4 text-[#6b7280]" />
-            <h3 className="text-lg font-semibold text-[#f9fafb] mb-2">
-              Entities Tab
-            </h3>
-            <p className="text-[#6b7280] mb-6">
-              {investigation.entities_count} entities discovered
-            </p>
-            <p className="text-sm text-[#6b7280]">
-              Entity list and management coming soon
-            </p>
-          </div>
+          <EntitiesTab investigationId={investigationId} />
         )}
 
         {activeTab === "evidence" && (
-          <div className="text-center py-16">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-[#6b7280]" />
-            <h3 className="text-lg font-semibold text-[#f9fafb] mb-2">
-              Evidence Tab
-            </h3>
-            <p className="text-[#6b7280] mb-6">
-              {investigation.evidence_count} pieces of evidence collected
-            </p>
-            <p className="text-sm text-[#6b7280]">
-              Evidence collection and documents coming soon
-            </p>
-          </div>
+          <EvidenceTab investigationId={investigationId} />
         )}
 
         {activeTab === "board" && (
