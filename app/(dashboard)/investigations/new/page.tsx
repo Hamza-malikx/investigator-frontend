@@ -1,4 +1,4 @@
-// app/(dashboard)/investigations/new/page.tsx
+// src/app/(dashboard)/investigations/new/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -16,6 +16,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useInvestigation } from "@/lib/hooks/useInvestigation";
+import { CreateInvestigationData } from "@/types/investigation";
 
 const steps = [
   {
@@ -111,69 +113,149 @@ const depthOptions = [
 
 export default function NewInvestigationPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { createInvestigation, isLoading, error, clearError } =
+    useInvestigation();
 
-  const [formData, setFormData] = useState({
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<CreateInvestigationData>({
     title: "",
     initial_query: "",
-    focus_areas: [] as string[],
+    focus_areas: [],
     depth_level: "moderate",
     time_range: {
       start: "",
       end: "",
     },
   });
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const validateStep = (step: number): boolean => {
+    const errors: Record<string, string> = {};
+
+    switch (step) {
+      case 0:
+        if (!formData.title.trim()) {
+          errors.title = "Title is required";
+        }
+        if (!formData.initial_query.trim()) {
+          errors.initial_query = "Research question is required";
+        } else if (formData.initial_query.trim().length < 20) {
+          errors.initial_query =
+            "Please provide more detail (at least 20 characters)";
+        }
+        break;
+      case 1:
+        if (formData.focus_areas && formData.focus_areas.length === 0) {
+          errors.focus_areas = "Please select at least one focus area";
+        }
+        break;
+      case 2:
+        // Depth level is always valid (has default)
+        break;
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
+    if (validateStep(currentStep)) {
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        handleSubmit();
+      }
     }
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+      setValidationErrors({});
     }
   };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    router.push("/investigations/inv_new_001");
+    clearError();
+
+    try {
+      // Prepare data for submission
+      const submissionData: CreateInvestigationData = {
+        title: formData.title,
+        initial_query: formData.initial_query,
+        focus_areas: formData.focus_areas,
+        depth_level: formData.depth_level,
+      };
+
+      // Add time range if provided
+      if (formData.time_range?.start || formData.time_range?.end) {
+        submissionData.time_range = formData.time_range;
+      }
+
+      // Create investigation
+      const investigation = await createInvestigation(submissionData);
+
+      // Redirect to investigation board
+      // router.push(`/investigations/${investigation.id}/board`);
+    } catch (err) {
+      console.error("Failed to create investigation:", err);
+      // Error is already set in the store
+    }
   };
 
   const toggleFocusArea = (id: string) => {
     setFormData((prev) => ({
       ...prev,
-      focus_areas: prev.focus_areas.includes(id)
+      focus_areas: prev.focus_areas?.includes(id)
         ? prev.focus_areas.filter((f) => f !== id)
-        : [...prev.focus_areas, id],
+        : [...(prev.focus_areas || []), id],
     }));
+    // Clear validation error
+    if (validationErrors.focus_areas) {
+      setValidationErrors({ ...validationErrors, focus_areas: "" });
+    }
   };
 
-  const canProceed = () => {
+  const handleInputChange = (
+    field: keyof CreateInvestigationData,
+    value: unknown,
+  ) => {
+    setFormData({ ...formData, [field]: value });
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors({ ...validationErrors, [field]: "" });
+    }
+    // Clear API error
+    if (error) {
+      clearError();
+    }
+  };
+
+  const canProceed = (): boolean => {
     switch (currentStep) {
       case 0:
-        return formData.title.trim() && formData.initial_query.trim();
+        return (
+          formData.title.trim() !== "" && formData.initial_query.trim() !== ""
+        );
       case 1:
-        return formData.focus_areas.length > 0;
+        return (formData.focus_areas?.length || 0) > 0;
       case 2:
         return true;
-      default:
+      case 3:
         return true;
+      default:
+        return false;
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link
-          href="/investigations"
+          href="/dashboard"
           className="p-2 rounded-xl bg-[#111827] border border-[#1f2937] text-[#6b7280] hover:text-[#f9fafb] hover:border-[#374151] transition-all"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -187,6 +269,19 @@ export default function NewInvestigationPage() {
           </p>
         </div>
       </div>
+
+      {/* API Error Alert */}
+      {error && (
+        <div className="mb-6 flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-500 font-medium">
+              Failed to Create Investigation
+            </p>
+            <p className="text-sm text-red-400 mt-1">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Progress steps */}
       <div className="mb-8">
@@ -243,12 +338,18 @@ export default function NewInvestigationPage() {
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
+                onChange={(e) => handleInputChange("title", e.target.value)}
                 placeholder="e.g., Financial Fraud Analysis - Q4 2024"
-                className="w-full h-12 px-4 rounded-xl bg-[#0a0f1e] border border-[#374151] text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 transition-all"
+                className={`w-full h-12 px-4 rounded-xl bg-[#0a0f1e] border text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 transition-all ${
+                  validationErrors.title ? "border-red-500" : "border-[#374151]"
+                }`}
+                disabled={isLoading}
               />
+              {validationErrors.title && (
+                <p className="mt-1.5 text-sm text-red-500">
+                  {validationErrors.title}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-[#d1d5db] mb-2">
@@ -257,12 +358,22 @@ export default function NewInvestigationPage() {
               <textarea
                 value={formData.initial_query}
                 onChange={(e) =>
-                  setFormData({ ...formData, initial_query: e.target.value })
+                  handleInputChange("initial_query", e.target.value)
                 }
                 placeholder="Describe what you want to investigate in detail. Be specific about the subject, scope, and desired outcomes."
                 rows={5}
-                className="w-full px-4 py-3 rounded-xl bg-[#0a0f1e] border border-[#374151] text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 transition-all resize-none"
+                className={`w-full px-4 py-3 rounded-xl bg-[#0a0f1e] border text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 transition-all resize-none ${
+                  validationErrors.initial_query
+                    ? "border-red-500"
+                    : "border-[#374151]"
+                }`}
+                disabled={isLoading}
               />
+              {validationErrors.initial_query && (
+                <p className="mt-1.5 text-sm text-red-500">
+                  {validationErrors.initial_query}
+                </p>
+              )}
               <p className="mt-2 text-xs text-[#6b7280]">
                 Tip: A well-defined question leads to better results. Include
                 names, dates, and specific topics.
@@ -276,19 +387,26 @@ export default function NewInvestigationPage() {
             <p className="text-[#9ca3af]">
               Select the areas you want the investigation to focus on:
             </p>
+            {validationErrors.focus_areas && (
+              <p className="text-sm text-red-500">
+                {validationErrors.focus_areas}
+              </p>
+            )}
             <div className="grid sm:grid-cols-2 gap-4">
               {focusAreaOptions.map((area) => {
                 const Icon = area.icon;
-                const isSelected = formData.focus_areas.includes(area.id);
+                const isSelected =
+                  formData.focus_areas?.includes(area.id) || false;
                 return (
                   <button
                     key={area.id}
                     onClick={() => toggleFocusArea(area.id)}
+                    disabled={isLoading}
                     className={`p-5 rounded-xl border text-left transition-all ${
                       isSelected
                         ? "bg-[#6366f1]/10 border-[#6366f1] ring-2 ring-[#6366f1]/20"
                         : "bg-[#0a0f1e] border-[#374151] hover:border-[#4b5563]"
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -332,14 +450,13 @@ export default function NewInvestigationPage() {
               {depthOptions.map((option) => (
                 <button
                   key={option.id}
-                  onClick={() =>
-                    setFormData({ ...formData, depth_level: option.id })
-                  }
+                  onClick={() => handleInputChange("depth_level", option.id)}
+                  disabled={isLoading}
                   className={`w-full p-6 rounded-xl border text-left transition-all relative ${
                     formData.depth_level === option.id
                       ? "bg-[#6366f1]/10 border-[#6366f1] ring-2 ring-[#6366f1]/20"
                       : "bg-[#0a0f1e] border-[#374151] hover:border-[#4b5563]"
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {option.recommended && (
                     <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-[#10b981]/10 text-[#10b981] text-xs font-medium border border-[#10b981]/20">
@@ -413,7 +530,7 @@ export default function NewInvestigationPage() {
                     Focus Areas
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.focus_areas.map((area) => (
+                    {formData.focus_areas?.map((area) => (
                       <span
                         key={area}
                         className="px-2 py-1 rounded-lg bg-[#6366f1]/10 text-[#818cf8] text-xs"
@@ -466,20 +583,20 @@ export default function NewInvestigationPage() {
         <Button
           variant="secondary"
           onClick={handleBack}
-          disabled={currentStep === 0}
+          disabled={currentStep === 0 || isLoading}
           className={currentStep === 0 ? "invisible" : ""}
         >
           Back
         </Button>
         <Button
           onClick={handleNext}
-          disabled={!canProceed() || isSubmitting}
-          isLoading={isSubmitting}
+          disabled={!canProceed() || isLoading}
+          isLoading={isLoading}
         >
           {currentStep === steps.length - 1 ? (
             <>
               <Sparkles className="w-4 h-4 mr-2" />
-              Launch Investigation
+              {isLoading ? "Launching..." : "Launch Investigation"}
             </>
           ) : (
             <>
