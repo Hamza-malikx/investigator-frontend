@@ -164,3 +164,63 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px var(--bg-tertiary) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+.react-flow__edge-path {
+  stroke: #9ca3af !important; /* Lighter gray for better visibility */
+  stroke-width: 2px;
+}
+
+.react-flow__edge-path:hover {
+  stroke: #d1d5db !important; /* Even lighter on hover */
+  stroke-width: 3px;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #6366f1 !important; /* Indigo when selected */
+  stroke-width: 3px;
+}
+
+.react-flow__edge-text {
+  fill: #d1d5db !important; /* Light text */
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.react-flow__edge-textbg {
+  fill: #111827 !important; /* Dark background for text */
+  fill-opacity: 0.9;
+}
+
+/* Animated edges */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Markers (arrowheads) */
+.react-flow__arrowhead {
+  fill: #9ca3af !important;
+}
+
+.react-flow__edge:hover .react-flow__arrowhead {
+  fill: #d1d5db !important;
+}
+
+.react-flow__edge.selected .react-flow__arrowhead {
+  fill: #6366f1 !important;
+}
+
+/* Add to your global CSS or component */
+.react-flow__edges {
+  overflow: visible !important;
+}
+
+.react-flow__edge-path {
+  stroke-opacity: 1 !important;
+}
