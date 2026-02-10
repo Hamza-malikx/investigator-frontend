@@ -181,7 +181,6 @@ export default function NewInvestigationPage() {
     clearError();
 
     try {
-      // Prepare data for submission
       const submissionData: CreateInvestigationData = {
         title: formData.title,
         initial_query: formData.initial_query,
@@ -189,19 +188,24 @@ export default function NewInvestigationPage() {
         depth_level: formData.depth_level,
       };
 
-      // Add time range if provided
       if (formData.time_range?.start || formData.time_range?.end) {
         submissionData.time_range = formData.time_range;
       }
 
-      // Create investigation
+      // Show loading state
+      // setIsLoading(true);
+
+      // Create investigation - backend returns immediately with ID
       const investigation = await createInvestigation(submissionData);
 
-      // Redirect to investigation board
-      // router.push(`/investigations/${investigation.id}/board`);
+      // Redirect IMMEDIATELY with the ID
+      router.push(`/investigations/${investigation.id}`);
+
+      // Note: Component may unmount here, causing the "cancelled"
+      // but that's OK - the investigation is already created and task is running
     } catch (err) {
       console.error("Failed to create investigation:", err);
-      // Error is already set in the store
+      // setIsLoading(false);
     }
   };
 

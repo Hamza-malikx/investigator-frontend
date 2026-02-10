@@ -22,17 +22,20 @@ import {
   Share2,
   Edit3,
   XCircle,
+  Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useInvestigation } from "@/lib/hooks/useInvestigation";
 import { formatRelativeTime } from "@/lib/utils";
 import { EntitiesTab } from "@/components/investigation/EntitiesTab";
 import { EvidenceTab } from "@/components/investigation/EvidenceTab";
+import { ThoughtChainTab } from "@/components/investigation/ThoughtChainTab";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "entities", label: "Entities", icon: Network },
   { id: "evidence", label: "Evidence", icon: FileText },
+  { id: "thinking", label: "AI Reasoning", icon: Brain },
   { id: "board", label: "Investigation Board", icon: Network },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -567,7 +570,7 @@ export default function InvestigationDetailPage() {
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-[#9ca3af]">API Calls</span>
                       <span className="text-[#f9fafb]">
-                        {investigation.total_api_calls.toLocaleString()}
+                        {investigation?.total_api_calls?.toLocaleString()}
                       </span>
                     </div>
                     <div className="h-2 bg-[#1f2937] rounded-full overflow-hidden">
@@ -645,6 +648,10 @@ export default function InvestigationDetailPage() {
 
         {activeTab === "evidence" && (
           <EvidenceTab investigationId={investigationId} />
+        )}
+
+        {activeTab === "thinking" && (
+          <ThoughtChainTab investigationId={investigationId} />
         )}
 
         {activeTab === "board" && (

@@ -277,7 +277,7 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1f2937]/80 border border-[#374151] text-sm text-[#d1d5db] backdrop-blur-sm hover:border-[#3b82f6]/50 transition-colors cursor-default group">
               <Sparkles className="w-4 h-4 text-[#a855f7] group-hover:rotate-12 transition-transform" />
-              <span>Now with GPT-4 powered analysis</span>
+              <span>Now with Gemini powered analysis</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse ml-1" />
             </div>
 

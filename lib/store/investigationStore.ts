@@ -15,9 +15,12 @@ interface InvestigationState {
   stats: InvestigationStats | null;
   isLoading: boolean;
   error: string | null;
-
+  pollingInterval: NodeJS.Timeout | null;
   // Actions
-  fetchInvestigations: (params?: { status?: string }) => Promise<void>;
+  fetchInvestigations: (params?: {
+    status?: string;
+    limit?: number;
+  }) => Promise<void>;
   fetchInvestigation: (id: string) => Promise<void>;
   createInvestigation: (
     data: CreateInvestigationData,
@@ -38,6 +41,8 @@ interface InvestigationState {
   fetchStats: () => Promise<void>;
   setCurrentInvestigation: (investigation: Investigation | null) => void;
   clearError: () => void;
+  startPolling: (investigationId: string) => void;
+  stopPolling: () => void;
 }
 
 export const useInvestigationStore = create<InvestigationState>((set, get) => ({
@@ -104,11 +109,62 @@ export const useInvestigationStore = create<InvestigationState>((set, get) => ({
         isLoading: false,
       }));
 
+      // Start polling for status updates (don't await)
+      get().startPolling(investigation.id);
+
       return investigation;
     } catch (error: unknown) {
       const errorMessage = handleApiError(error);
       set({ error: errorMessage, isLoading: false });
       throw new Error(errorMessage);
+    }
+  },
+
+  // Add polling methods to the store
+  pollingInterval: null as NodeJS.Timeout | null,
+
+  startPolling: (investigationId: string) => {
+    const { pollingInterval } = get();
+
+    // Clear existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+
+    // Poll every 3 seconds
+    const interval = setInterval(async () => {
+      try {
+        const status = await investigationAPI.getStatus(investigationId);
+
+        // Update current investigation with new status
+        set((state) => ({
+          currentInvestigation:
+            state.currentInvestigation?.id === investigationId
+              ? { ...state.currentInvestigation, ...status }
+              : state.currentInvestigation,
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId ? { ...inv, ...status } : inv,
+          ),
+        }));
+
+        // Stop polling if completed or failed
+        if (status.status === "completed" || status.status === "failed") {
+          get().stopPolling();
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+        // Continue polling even on error
+      }
+    }, 3000);
+
+    set({ pollingInterval: interval });
+  },
+
+  stopPolling: () => {
+    const { pollingInterval } = get();
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      set({ pollingInterval: null });
     }
   },
 
